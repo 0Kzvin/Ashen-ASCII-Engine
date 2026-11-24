@@ -1,5 +1,15 @@
 # Renderizado ASCII
 
+## Cine V2
+El modo 5 usa `ascii_v2.gdshader`. Conserva los índices 0 a 4 de los perfiles existentes. El generador construye una textura de 256 × 14 que mapea coberturas objetivo a los glifos adyacentes y a su mezcla. Calcula la cobertura contando píxeles encendidos en cada celda de 8 × 8. Las familias mantienen el atlas y las fuentes del original. La conversión abre espacio en sombra, limita la tinta sobre piedra amplia y reserva un refuerzo de luminosidad local para brillos y partículas.
+
+Un CompositorEffect Forward+ lee la profundidad reverse-Z y las normales y rugosidad de la geometría opaca después de transparencias. Genera una textura RGBA8 de hasta 1024 × 768 **celdas** en GPU. Las componentes RG codifican el gradiente, B amplifica los cambios de normal y A conserva rugosidad y presencia de superficie. La composición usa cinco muestras de color por celda, combina bordes geométricos con bordes luminosos y aplica trazos orientados. El cambio de profundidad en segundo orden evita confundir la inclinación de un plano con un salto. Sin esos búferes, V2 conserva los bordes de luminancia. Los materiales se clasifican por color y rugosidad. Para asignación exacta por objeto haría falta un búfer de identificadores.
+
+La estabilidad usa muestreo espacial, un patrón de umbrales fijo y mezcla acotada entre glifos. El control Estabilidad cambia el filtrado y la amplitud de la transición en ambos renderizadores. El método carece de historial de cuadros, por lo que los contornos pueden saltar de celda al moverse rápido. Brillo, contraste, color, exposición, bordes y familias actúan sobre el shader. Resplandor, niebla e iluminación actúan sobre el mundo. Partículas cambia los emisores del mundo y de la espada.
+
+Las brasas y runas cercanas son glifos individuales en planos 3D orientados hacia la cámara. Pasan por la composición junto con la estela y las demás transparencias, con un realce a partir de picos de luminancia. Conservan la oclusión de la escena. Las pruebas de tres iteraciones ajustaron el umbral de sombra, la luz de personajes y el rechazo de gradientes de suelo. [Fuente de profundidad y normales en Godot](https://docs.godotengine.org/en/stable/classes/class_compositoreffect.html) · [Comparación del Osario](evidence/ascii-v2/osario.jpg) · [Laboratorio](evidence/ascii-v2/laboratorio.jpg).
+
+## Renderizador original
 La escena 3D ilumina los materiales en Forward+. Un `ColorRect` de pantalla completa lee el color de esa escena mediante `hint_screen_texture` y compone los caracteres en la GPU. El HUD y los controles de arte se dibujan en capas posteriores. La clase `AsciiRenderer` actualiza parámetros al cambiar el perfil y carece de bucle por fotograma.
 
 ## Modos

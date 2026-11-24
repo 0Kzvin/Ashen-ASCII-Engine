@@ -4,14 +4,42 @@ using Godot;
 public partial class AsciiRenderer : ColorRect
 {
     private ShaderMaterial _composite;
+    private ShaderMaterial _v2;
+    private AsciiGeometry _geometry;
     private int _mode = 3;
+    public const int AdvancedMode = 5;
+
+    public void AttachGeometry(Camera3D camera)
+    {
+        if (RenderingServer.GetCurrentRenderingMethod() != "forward_plus" || RenderingServer.GetRenderingDevice() == null)
+            return;
+        _geometry = new AsciiGeometry { Enabled = false };
+        _geometry.Prepare();
+        camera.Compositor = new Compositor { CompositorEffects = new() { _geometry } };
+    }
+
+    public override void _ExitTree() => _geometry?.Release();
+
+    private ShaderMaterial LoadV2()
+    {
+        if (_v2 != null) return _v2;
+        _v2 = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ascii_v2.gdshader") };
+        _v2.SetShaderParameter("glyph_atlas", GD.Load<Texture2D>("res://assets/fonts/glyph_atlas.png"));
+        _v2.SetShaderParameter("coverage_map", GD.Load<Texture2D>("res://assets/fonts/glyph_coverage.png"));
+        if (_geometry != null)
+        {
+            _v2.SetShaderParameter("cell_field", _geometry.Field);
+            _v2.SetShaderParameter("has_geometry", true);
+        }
+        return _v2;
+    }
 
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         LoadComposite();
-        Material = _composite;
+        Material ??= _composite;
         Visible = _mode != 0;
     }
 
@@ -25,19 +53,26 @@ public partial class AsciiRenderer : ColorRect
     public void Apply(int mode, float cell, float density, float contrast, float brightness,
         float saturation, float exposure, float edges, float stability, int palette, int glyphSet)
     {
-        _mode = Mathf.Clamp(mode, 0, 4);
+        _mode = Mathf.Clamp(mode, 0, AdvancedMode);
         Visible = _mode != 0;
         LoadComposite();
-        _composite.SetShaderParameter("display_mode", _mode);
-        _composite.SetShaderParameter("cell_width", Mathf.Clamp(cell, 4f, 16f));
-        _composite.SetShaderParameter("density", Mathf.Clamp(density, 0f, 2f));
-        _composite.SetShaderParameter("contrast", Mathf.Clamp(contrast, 0f, 2f));
-        _composite.SetShaderParameter("brightness", Mathf.Clamp(brightness, 0f, 2f));
-        _composite.SetShaderParameter("saturation", Mathf.Clamp(saturation, 0f, 2f));
-        _composite.SetShaderParameter("exposure", Mathf.Clamp(exposure, 0f, 2f));
-        _composite.SetShaderParameter("edge_strength", Mathf.Clamp(edges, 0f, 2f));
-        _composite.SetShaderParameter("stability", Mathf.Clamp(stability, 0f, 1f));
-        _composite.SetShaderParameter("palette_index", Mathf.Clamp(palette, 0, 2));
-        _composite.SetShaderParameter("glyph_family", Mathf.Clamp(glyphSet, 0, 6));
+        ShaderMaterial material = _mode == AdvancedMode ? LoadV2() : _composite;
+        Material = material;
+        if (_geometry != null)
+        {
+            _geometry.Cell = Mathf.Clamp(cell, 4f, 16f);
+            _geometry.Enabled = _mode == AdvancedMode;
+        }
+        if (material == _composite) material.SetShaderParameter("display_mode", _mode);
+        material.SetShaderParameter("cell_width", Mathf.Clamp(cell, 4f, 16f));
+        material.SetShaderParameter("density", Mathf.Clamp(density, 0f, 2f));
+        material.SetShaderParameter("contrast", Mathf.Clamp(contrast, 0f, 2f));
+        material.SetShaderParameter("brightness", Mathf.Clamp(brightness, 0f, 2f));
+        material.SetShaderParameter("saturation", Mathf.Clamp(saturation, 0f, 2f));
+        material.SetShaderParameter("exposure", Mathf.Clamp(exposure, 0f, 2f));
+        material.SetShaderParameter("edge_strength", Mathf.Clamp(edges, 0f, 2f));
+        material.SetShaderParameter("stability", Mathf.Clamp(stability, 0f, 1f));
+        material.SetShaderParameter("palette_index", Mathf.Clamp(palette, 0, 2));
+        material.SetShaderParameter("glyph_family", Mathf.Clamp(glyphSet, 0, 6));
     }
 }

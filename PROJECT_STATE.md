@@ -1,3 +1,8 @@
-# Estado
-Hito de renderizado v0.2-render en main. Godot .NET 4.7.2, Forward+ sobre RTX 4060. Prototipo aislado verificado a 1920 × 1080 en seis configuraciones, cinco modos y siete familias automáticas. Cine GPU p50 0,515 ms y p95 0,527 ms en la escena de muestras. Ver docs/RENDERING.md y docs/evidence/render-poc.
-Último commit anterior verificado: a1994bd (bootstrap). Próxima tarea: integrar el escenario y someter el juego completo a pruebas gráficas y de jugabilidad. El benchmark anterior no mide la escena jugable.
+# Estado de ASHEN
+Hito `v0.3-ascii-v2`. El Osario y el laboratorio son jugables en Godot 4.7.2 .NET. V2 abre por defecto. El modo 3 conserva el shader original y el 5 usa profundidad, normales y la rampa calibrada en GPU. ASCII Studio conserva perfiles JSON y permite comparar ambos.
+
+Verificado en la RTX 4060 a 1920 × 1080. V2 en recorrido obtuvo 450,71 FPS medios sin VSync y 2,79 ms p95. Pasaron compilación, pruebas headless y GPU, captura de modos, combate, perfiles, pausa y pantalla completa. Pasó la ejecución del EXE exportado en el Osario y en el laboratorio. Arte y pruebas reproducibles en docs/evidence/ascii-v2 y scripts/validate.ps1. El ZIP Windows se genera en build/ y queda fuera de Git.
+
+Archivos relevantes. `AsciiRenderer.cs`, `AsciiGeometry.cs`, `ascii_v2.gdshader`, `ascii_geometry.glsl`, `GraphicsLab.tscn` y `tools/build_atlas.py`.
+
+La cuadrícula vive en pantalla. Los contornos finos pueden cambiar de celda con movimientos rápidos. Próxima tarea concreta. Medir una trayectoria repetida de cámara rápida para decidir si implementar reproyección de profundidad y comparar estabilidad con el mismo encuadre.

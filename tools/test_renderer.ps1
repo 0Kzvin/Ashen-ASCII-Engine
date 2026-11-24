@@ -16,7 +16,7 @@ foreach ($folder in 'scripts/rendering', 'shaders', 'assets/fonts', 'captures') 
     New-Item -ItemType Directory -Path (Join-Path $work $folder) -Force | Out-Null
 }
 New-Item -ItemType File -Path (Join-Path $captures '.gdignore') -Force | Out-Null
-foreach ($file in 'scripts/rendering/AsciiRenderer.cs', 'shaders/ascii_composite.gdshader', 'assets/fonts/glyph_atlas.png', 'Ashen.csproj') {
+foreach ($file in 'scripts/rendering/AsciiRenderer.cs', 'scripts/rendering/AsciiGeometry.cs', 'shaders/ascii_composite.gdshader', 'assets/fonts/glyph_atlas.png', 'Ashen.csproj') {
     Copy-Item -LiteralPath (Join-Path $root "game/$file") -Destination (Join-Path $work $file)
 }
 foreach ($file in 'project.godot', 'Probe.cs', 'Probe.tscn') {

@@ -50,6 +50,30 @@ def chunk(name, data):
     return struct.pack(">I", len(data)) + name + data + struct.pack(">I", zlib.crc32(name + data))
 
 
+def write_png(path, width, height, pixels, color_type=0):
+    scanlines = b"".join(b"\0" + line for line in pixels)
+    ihdr = struct.pack(">2I5B", width, height, 8, color_type, 0, 0, 0)
+    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(scanlines, 9))
+    path.write_bytes(png + chunk(b"IEND", b""))
+
+
+def coverage_lookup(ramp, glyphs):
+    # Keep the first glyph at each distinct measured coverage.
+    indices = {}
+    for index, char in enumerate(ramp):
+        bits = sum(row.bit_count() for row in glyphs[char])
+        indices.setdefault(bits, index)
+    points = list(indices.items())
+    row = bytearray()
+    for code in range(256):
+        target = code * 64 / 255
+        lower = max((point for point in points if point[0] <= target), default=points[0])
+        upper = min((point for point in points if point[0] >= target), default=points[-1])
+        ratio = (target - lower[0]) / (upper[0] - lower[0]) if upper[0] > lower[0] else 0
+        row.extend((lower[1], upper[1], round(ratio * 255)))
+    return row
+
+
 def main():
     glyphs = load_bitmaps()
     sets = json.loads((FONT_DIR / "glyph_sets.json").read_text(encoding="utf-8"))
@@ -61,6 +85,7 @@ def main():
         sets.append({**bases[item["base"]], **item, "name": material})
     width, height = (DENSITY_COUNT + 4) * TILE, len(sets) * TILE
     pixels = [bytearray(width) for _ in range(height)]
+    lookup = []
     for y, family in enumerate(sets):
         ramp, edges = family["density"], family["directions"]
         if len(ramp) != DENSITY_COUNT or len(edges) != 4 or " " not in ramp:
@@ -69,14 +94,20 @@ def main():
             if len(glyphs.get(char, [])) != 8:
                 raise ValueError(f"Missing 8px bitmap for {char!r}")
         ramp = sorted(ramp, key=lambda char: sum(row.bit_count() for row in glyphs[char]))
+        lookup.append(coverage_lookup(ramp, glyphs))
         for x, char in enumerate(ramp + list(edges)):
             for py, row in enumerate(glyphs[char]):
                 for px in range(8):
                     pixels[y * TILE + py + 1][x * TILE + px + 1] = 255 if row & (128 >> px) else 0
-    scanlines = b"".join(b"\0" + line for line in pixels)
-    ihdr = struct.pack(">2I5B", width, height, 8, 0, 0, 0, 0)
-    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(scanlines, 9))
-    (FONT_DIR / "glyph_atlas.png").write_bytes(png + chunk(b"IEND", b""))
+    write_png(FONT_DIR / "glyph_atlas.png", width, height, pixels)
+    write_png(FONT_DIR / "glyph_coverage.png", 256, len(sets), lookup, color_type=2)
+    for name, char in (("spark", "*"), ("rune", "ᛉ")):
+        rows = [
+            bytes(channel for px in range(8)
+                  for channel in (255, 255, 255, 255 if bits & (128 >> px) else 0))
+            for bits in glyphs[char]
+        ]
+        write_png(FONT_DIR / f"particle_{name}.png", 8, 8, rows, color_type=6)
     print(f"glyph_atlas.png: {width} x {height}, {len(bases)} families + {len(overrides)} material rows")
 
 

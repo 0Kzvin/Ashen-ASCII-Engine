@@ -3,6 +3,7 @@ config_version=5
 
 [application]
 config/name="ASHEN"
+config/icon="res://assets/ui/sigil.svg"
 config/description="El Osario de la Vigilia"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
@@ -10,6 +11,7 @@ boot_splash/show_image=false
 boot_splash/bg_color=Color(0.016,0.024,0.035,1)
 
 [display]
+window/size/mode=3
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"

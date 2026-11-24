@@ -1,0 +1,13 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://ckx4nnrgs1qiw"
+path="res://.godot/imported/ascii_geometry.glsl-af983923aba450c910192a8531e53461.res"
+
+[deps]
+
+source_file="res://shaders/ascii_geometry.glsl"
+dest_files=["res://.godot/imported/ascii_geometry.glsl-af983923aba450c910192a8531e53461.res"]
+
+[params]
