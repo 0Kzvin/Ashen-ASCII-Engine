@@ -1,0 +1,24 @@
+; ASHEN
+config_version=5
+
+[application]
+config/name="ASHEN"
+config/description="El Osario de la Vigilia"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0.016,0.024,0.035,1)
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[dotnet]
+project/assembly_name="Ashen"
+
+[rendering]
+renderer/rendering_method="forward_plus"
+anti_aliasing/quality/screen_space_aa=1
+environment/defaults/default_clear_color=Color(0.018,0.028,0.05,1)

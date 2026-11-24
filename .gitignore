@@ -1,0 +1,14 @@
+/.local/
+/build/
+/captures-tmp/
+/game/.godot/
+**/bin/
+**/obj/
+.vs/
+*.user
+*.tmp
+*.log
+__pycache__/
+.env
+/export_credentials.cfg
+game/.mono/
