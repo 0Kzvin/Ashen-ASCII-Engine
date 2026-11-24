@@ -1,0 +1,13 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://c1p4jblob26g5"
+path="res://.godot/imported/artistic_mask.glsl-422593ef8c57509042bd08a299674808.res"
+
+[deps]
+
+source_file="res://shaders/artistic_mask.glsl"
+dest_files=["res://.godot/imported/artistic_mask.glsl-422593ef8c57509042bd08a299674808.res"]
+
+[params]

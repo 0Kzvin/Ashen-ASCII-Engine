@@ -1,7 +1,5 @@
 using Godot;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,13 +23,7 @@ public partial class DemoValidation : Node
             if(restarting)return;
             if(args.Contains("--capture"))await Gallery();
             if(args.Contains("--benchmark"))await Benchmark();
-            if(args.Contains("--film"))
-            {
-                Game.Profile.Mode = int.Parse(Opt("--mode","5"));
-                Game.ApplyProfile();
-                Game.Camera.ToggleTour();
-                await Frames(360);
-            }
+            if(args.Contains("--film")) await Film();
             if(IsInsideTree())Game.ExitTo();
         }
         catch(Exception e){GD.PushError("ASHEN QA: "+e);Game.ExitTo(code:1);}
@@ -66,9 +58,9 @@ public partial class DemoValidation : Node
         Check(Game.Warden.Health<health,"attack and impact");
         Game.SetPhysicsProcess(true);
         Game.ToggleStudio();Check(Game.StudioOpen,"studio opened");Game.ToggleStudio();
-        foreach(int mode in Enumerable.Range(0,6))
+        foreach(int mode in Enumerable.Range(0,7))
         {Game.Profile.Mode=mode;Game.ApplyProfile();Check(Game.Renderer.Visible==(mode!=0),"render mode "+mode);}
-        Game.Compare();Game.Compare();Check(Game.Profile.Mode==5,"comparison restores mode");
+        Game.Compare();Game.Compare();Check(Game.Profile.Mode==6,"comparison restores mode");
         foreach(int quality in Enumerable.Range(0,4))
         {Game.SetProfile(ArtProfile.Preset(quality));Check(Math.Abs(Game.GetViewport().Scaling3DScale-Game.Profile.Scale)<.01,"quality "+quality);}
         var p=Game.Profile;p.Cell=13;p.Palette=2;p.GlyphSet=5;
@@ -101,11 +93,17 @@ public partial class DemoValidation : Node
         await Frames(60);
         Game.Warden.SetPhysicsProcess(false);
         Game.SetPhysicsProcess(false);
+        Transform3D galleryStart = Game.Camera.GlobalTransform;
         Game.Warden.GlobalPosition = new Vector3(2.9f, .02f, -.85f);
         Game.World.SetProcess(false);
         foreach(var (name,mode) in new[]{("01-ruinas",0),("02-monocromo",1),("03-ceniza",3),("04-color",2),("05-diagnostico",4),("12-v2",5)})
         {Game.Profile.Mode=mode;Game.ApplyProfile();await Shot(name);}
+        await CompareView("osario", Game.Camera.GlobalPosition, Game.Camera.GlobalPosition - Game.Camera.GlobalBasis.Z * 8);
+        await CompareView("antorcha", new(-2.42f, 2.30f, -0.25f), new(-3.1f, 1.96f, -2.95f));
+        await CompareView("portal", new(0.1f, 2.42f, .66f), new(0, 1.91f, -5.40f));
         Game.World.SetProcess(true);
+        await Frames(1);
+        Game.Camera.GlobalTransform = galleryStart;
         Game.Profile.Mode=5;Game.Profile.Palette=1;Game.Profile.Cell=11;Game.ApplyProfile();await Shot("06-lunar");
         Game.Profile.Palette=2;Game.Profile.Cell=6;Game.ApplyProfile();await Shot("07-cobre");
         Game.SetProfile(ArtProfile.Preset(3));Game.ToggleStudio();await Shot("08-studio");Game.ToggleStudio();
@@ -116,28 +114,75 @@ public partial class DemoValidation : Node
         await Shot("10-ataque",7);
         Game.SetPhysicsProcess(true);Game.Camera.ToggleTour();await Shot("11-recorrido",110);
     }
+    async Task CompareView(string name, Vector3 eye, Vector3 target)
+    {
+        Game.Camera.GlobalPosition = eye;
+        Game.Camera.LookAt(target);
+        Game.SetProfile(new ArtProfile());
+        await Shot(name + "-v2");
+        Game.SetProfile(ArtProfile.Artistic());
+        await Shot(name + "-v3");
+    }
+
+    async Task Film()
+    {
+        int mode = int.Parse(Opt("--mode","6"));
+        var profile = mode == 6 ? ArtProfile.Artistic() : new ArtProfile { Mode = mode };
+        Game.SetProfile(profile);
+        Game.Hud.Hide();
+        Game.SetPhysicsProcess(false);
+        Game.Warden.SetPhysicsProcess(false);
+        Game.Warden.Hide();
+        var rate = Math.Max(30, Engine.PhysicsTicksPerSecond);
+        Game.Player.GlobalPosition = new Vector3(-.85f, .015f, .55f);
+        var refuge = new Vector3(-.85f, 1.19f, .55f);
+        for (int i=0; i<rate*27; i++)
+        {
+            await Physics(1);
+            float t = i/(float)rate;
+            Vector3 target, eye;
+            if (t < 6)
+            {
+                float a = .47f - t*.047f;
+                target = new(-.25f, 2.4f, -1.75f);
+                eye = target + new Vector3(Mathf.Sin(a)*13, 6.2f, Mathf.Cos(a)*13);
+            }
+            else if (t < 14)
+            {
+                float s = (t-6)/8;
+                float a = Mathf.Lerp(-2.76f, -3.62f, s);
+                target = refuge + new Vector3(0,.10f,0);
+                eye = target + new Vector3(Mathf.Sin(a)*4.55f,.39f+1.05f*s,Mathf.Cos(a)*4.55f);
+            }
+            else if (t < 20)
+            {
+                float s = (t-14)/6;
+                target = new(-3.10f, 2.04f, -2.95f);
+                eye = target + new Vector3(.94f-s*1.02f,.26f,2.90f-s*.47f);
+            }
+            else
+            {
+                float s = (t-20)/7;
+                target = new(0,2.06f,-5.38f);
+                eye = target + new Vector3(.95f-s*1.53f, .88f-s*.32f,7.0f-s*1.5f);
+            }
+            Game.Camera.GlobalPosition = eye;
+            Game.Camera.LookAt(target);
+            Vector3 aim = t < 14 ? new Vector3(-1.8f,0,-4.8f) : new Vector3(-2.8f,0,-2.7f);
+            Game.Player.Drive(Vector2.Zero, aim, i==rate*11, false, 1.0/rate);
+        }
+    }
+
     async Task Benchmark()
     {
         int quality=int.Parse(Opt("--quality","3"));
         Game.SetProfile(ArtProfile.Preset(quality));
-        Game.Profile.Mode=int.Parse(Opt("--mode","5"));Game.ApplyProfile();
-        DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);Engine.MaxFps=0;
-        var viewport = GetViewport().GetViewportRid();
-        RenderingServer.ViewportSetMeasureRenderTime(viewport, true);
-        Game.Camera.ToggleTour();await Frames(160);
-        var samples=new List<double>();
-        var gpu=new List<double>();
-        var timer=Stopwatch.StartNew();
-        double previous=timer.Elapsed.TotalMilliseconds;
-        while(timer.Elapsed.TotalSeconds<8 || samples.Count<120)
-        {
-            await Frames(1);
-            double now=timer.Elapsed.TotalMilliseconds;samples.Add(now-previous);previous=now;
-            gpu.Add(RenderingServer.ViewportGetMeasuredRenderTimeGpu(viewport));
-        }
-        samples.Sort();
-        gpu.Sort();
-        string result=FormattableString.Invariant($"quality={quality} mode={Game.Profile.Mode} size={DisplayServer.WindowGetSize()} adapter={RenderingServer.GetVideoAdapterName()} frames={samples.Count} seconds={timer.Elapsed.TotalSeconds:F3} fps={1000/samples.Average():F2} median_ms={samples[samples.Count/2]:F2} p95_ms={samples[(int)(samples.Count*.95)]:F2} p99_ms={samples[(int)(samples.Count*.99)]:F2} gpu_median_ms={gpu[gpu.Count/2]:F2} gpu_p95_ms={gpu[(int)(gpu.Count*.95)]:F2}");
-        GD.Print(result);File.WriteAllText(Path.Combine(output,$"benchmark-{quality}-{Game.Profile.Mode}.txt"),result);
+        Game.Profile.Mode=int.Parse(Opt("--mode","6"));
+        Game.HybridInk = !args.Contains("--screen-only");
+        if (Game.Profile.Mode==5) Game.Profile.Cell = 9;
+        Game.ApplyProfile();
+        Game.Camera.ToggleTour();
+        string result = await FrameBenchmark.Sample(this, $"quality={quality} mode={Game.Profile.Mode} hybrid={Game.HybridInk}", 8);
+        GD.Print(result);File.WriteAllText(Path.Combine(output,$"benchmark-{quality}-{Game.Profile.Mode}{(Game.HybridInk ? "" : "-pantalla")}.txt"),result);
     }
 }

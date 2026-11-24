@@ -7,7 +7,7 @@ public partial class Main : Node3D
     public Knight Player {get;private set;}
     public Knight Warden {get;private set;}
     public OrbitRig Camera {get;private set;}
-    public ArtProfile Profile {get;private set;} = new();
+    public ArtProfile Profile {get;private set;} = ArtProfile.Artistic();
     public Ruins World {get;private set;}
     public AsciiRenderer Renderer {get;private set;}
     public StudioPanel Studio {get;private set;}
@@ -18,7 +18,8 @@ public partial class Main : Node3D
     Control menu;
     Label cameraButtonLabel;
     Button tourButton;
-    int lastAscii=5;
+    int lastAscii=AsciiRenderer.ArtisticMode;
+    internal bool HybridInk { get; set; } = true;
     bool attack,dodge;
     double refresh;
     public override void _Ready()
@@ -44,7 +45,7 @@ public partial class Main : Node3D
         menu=MakeMenu(ui);
         ApplyProfile();
         string[] args=OS.GetCmdlineUserArgs();
-        if(args.Contains("--lab") || args.Contains("--lab-capture")) OpenLab();
+        if(args.Contains("--lab") || args.Contains("--lab-capture") || args.Contains("--lab-benchmark")) OpenLab();
         else if(args.Contains("--qa")||args.Contains("--capture")||args.Contains("--benchmark")||args.Contains("--film"))
             AddChild(new DemoValidation{Game=this});
     }
@@ -58,7 +59,10 @@ public partial class Main : Node3D
     public void ApplyProfile()
     {
         var p=Profile;p.ClampValues();
-        Renderer.Apply(p.Mode,p.Cell,p.Density,p.Contrast,p.Brightness,p.Saturation,p.Exposure,p.Edges,p.Stability,p.Palette,p.GlyphSet);
+        Renderer.Apply(p.Mode,p.Cell,p.Density,p.Contrast,p.Brightness,p.Saturation,p.Exposure,p.Edges,p.Stability,p.Palette,p.GlyphSet,HybridInk);
+        bool artistic = p.Mode == AsciiRenderer.ArtisticMode && HybridInk;
+        Player.SetArtistic(artistic);
+        World.SetArtistic(artistic);
         World.SetAtmosphere(p.Light,p.Fog,p.Particles,p.Glow);
         Player.SetEffects(p.Particles);Warden.SetEffects(p.Particles);
         GetViewport().Scaling3DScale=p.Scale;
@@ -135,7 +139,7 @@ public partial class Main : Node3D
         if(!Diagnostics.Visible)return;
         var size=DisplayServer.WindowGetSize();
         float fps=(float)Engine.GetFramesPerSecond();
-        int cells=Mathf.CeilToInt(size.X/Profile.Cell)*Mathf.CeilToInt(size.Y/Mathf.Round(Profile.Cell*1.36f));
+        int cells=Mathf.CeilToInt(size.X/Profile.Cell)*Mathf.CeilToInt(size.Y/Mathf.Round(Profile.Cell*(Profile.Mode==AsciiRenderer.ArtisticMode?1.30f:1.36f)));
         double mem=Performance.GetMonitor(Performance.Monitor.MemoryStatic)/1048576;
         Diagnostics.Text=$"{fps:0} FPS    ·    {1000/Mathf.Max(1,fps):0.0} ms\n{size.X} × {size.Y}    ·    Escala 3D {Profile.Scale:P0}\nCelda {Profile.Cell:0} px    ·    ≈ {cells:N0} celdas\n{RenderingServer.GetCurrentRenderingMethod()}    ·    {RenderingServer.GetVideoAdapterName()}\nMemoria estática del motor    {mem:N0} MiB";
     }

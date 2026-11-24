@@ -4,10 +4,14 @@ using System;
 public partial class AsciiGeometry : CompositorEffect
 {
     public Texture2Drd Field { get; } = new();
+    public Texture2Drd Mask { get; } = new();
+    public volatile bool Artistic;
+    const int MaskWidth = 1024, MaskHeight = 576;
     public volatile float Cell = 9;
+    public volatile float Aspect = 1.36f;
     const int FieldWidth = 1024, FieldHeight = 768;
     RenderingDevice device;
-    Rid texture, shader, sampler, pipeline;
+    Rid texture, shader, sampler, pipeline, maskTexture, maskShader, maskPipeline;
     static readonly StringName Clustered = "forward_clustered", NormalRoughness = "normal_roughness";
 
     public AsciiGeometry()
@@ -20,6 +24,7 @@ public partial class AsciiGeometry : CompositorEffect
     public void Prepare()
     {
         var spirv = GD.Load<RDShaderFile>("res://shaders/ascii_geometry.glsl").GetSpirV();
+        var maskSpirv = GD.Load<RDShaderFile>("res://shaders/artistic_mask.glsl")?.GetSpirV();
         RenderingServer.CallOnRenderThread(Callable.From(() =>
         {
             device = RenderingServer.GetRenderingDevice();
@@ -32,6 +37,15 @@ public partial class AsciiGeometry : CompositorEffect
                 UsageBits = RenderingDevice.TextureUsageBits.StorageBit | RenderingDevice.TextureUsageBits.SamplingBit
             }, new RDTextureView());
             Field.TextureRdRid = texture;
+            if (maskSpirv == null) return;
+            maskShader = device.ShaderCreateFromSpirV(maskSpirv);
+            if (!maskShader.IsValid) return;
+            maskPipeline = device.ComputePipelineCreate(maskShader);
+            maskTexture = device.TextureCreate(new RDTextureFormat {
+                Width = MaskWidth, Height = MaskHeight, Format = RenderingDevice.DataFormat.R8G8Unorm,
+                UsageBits = RenderingDevice.TextureUsageBits.StorageBit | RenderingDevice.TextureUsageBits.SamplingBit
+            }, new RDTextureView());
+            Mask.TextureRdRid = maskTexture;
         }));
     }
 
@@ -48,7 +62,7 @@ public partial class AsciiGeometry : CompositorEffect
             Sampled(0, depth), Sampled(1, normal), Uniform(2, RenderingDevice.UniformType.Image, texture)
         });
         float cell = Cell;
-        float width = Mathf.Floor(cell + .5f), height = Mathf.Floor(cell * 1.36f + .5f);
+        float width = Mathf.Floor(cell + .5f), height = Mathf.Floor(cell * Aspect + .5f);
         ReadOnlySpan<float> constants = [target.X, target.Y, width, height];
         var push = System.Runtime.InteropServices.MemoryMarshal.AsBytes(constants);
         long list = device.ComputeListBegin();
@@ -58,6 +72,19 @@ public partial class AsciiGeometry : CompositorEffect
         device.ComputeListDispatch(list,
             (uint)Mathf.CeilToInt(Mathf.Min(FieldWidth, Mathf.Ceil(target.X / width)) / 8),
             (uint)Mathf.CeilToInt(Mathf.Min(FieldHeight, Mathf.Ceil(target.Y / height)) / 8), 1);
+        device.ComputeListEnd();
+        if (Artistic && maskPipeline.IsValid) RenderMask(depth, normal);
+    }
+
+    void RenderMask(Rid depth, Rid normal)
+    {
+        Rid uniforms = UniformSetCacheRD.GetCache(maskShader, 0, new Godot.Collections.Array<RDUniform> {
+            Sampled(0, depth), Sampled(1, normal), Uniform(2, RenderingDevice.UniformType.Image, maskTexture)
+        });
+        long list = device.ComputeListBegin();
+        device.ComputeListBindComputePipeline(list, maskPipeline);
+        device.ComputeListBindUniformSet(list, uniforms, 0);
+        device.ComputeListDispatch(list, MaskWidth / 8, MaskHeight / 8, 1);
         device.ComputeListEnd();
     }
 
@@ -81,6 +108,10 @@ public partial class AsciiGeometry : CompositorEffect
         RenderingServer.CallOnRenderThread(Callable.From(() =>
         {
             Field.TextureRdRid = default;
+            Mask.TextureRdRid = default;
+            if (maskTexture.IsValid) device.FreeRid(maskTexture);
+            if (maskShader.IsValid) device.FreeRid(maskShader);
+            maskPipeline = default;
             if (texture.IsValid) device.FreeRid(texture);
             if (sampler.IsValid) device.FreeRid(sampler);
             if (shader.IsValid) device.FreeRid(shader);

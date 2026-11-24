@@ -18,5 +18,7 @@ if ($Capture) {
     Invoke-Check @('--fullscreen','--','--lab-capture',$dest)
 }
 if ($Benchmark) {
-    foreach ($mode in 0,3,5) {Invoke-Check @('--fullscreen','--disable-vsync','--','--benchmark','--mode',"$mode",'--out',$dest)}
+    foreach ($mode in 5,6) {Invoke-Check @('--fullscreen','--disable-vsync','--','--benchmark','--mode',"$mode",'--out',$dest)}
+    Invoke-Check @('--fullscreen','--disable-vsync','--','--benchmark','--mode','6','--screen-only','--out',$dest)
+    Invoke-Check @('--fullscreen','--disable-vsync','--','--lab-benchmark',$dest)
 }

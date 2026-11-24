@@ -1,7 +1,7 @@
-param([string]$Godot)
+param([string]$Godot,[string]$OutputDirectory)
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot
-$dest=Join-Path $root 'build/windows'
+$dest=if ($OutputDirectory) {[IO.Path]::GetFullPath($OutputDirectory)} else {Join-Path $root 'build/windows-v3'}
 New-Item -ItemType Directory -Force $dest | Out-Null
 & "$root/run.ps1" -Godot $Godot -BuildOnly
 if ($LASTEXITCODE) {exit $LASTEXITCODE}

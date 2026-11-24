@@ -22,16 +22,17 @@ public class ArtProfile
     public int GlyphSet { get; set; }
     public int Quality { get; set; } = 3;
     public float Scale => new[]{.60f,.75f,.9f,1f}[Math.Clamp(Quality,0,3)];
+    public static ArtProfile Artistic() => new() { Mode = AsciiRenderer.ArtisticMode, Cell = 10, Glow = .29f, Stability = .85f };
     public static ArtProfile Preset(int index) => index switch {
         0 => new() {Quality=0, Cell=12, Particles=.35f, Glow=.25f, Edges=.8f},
         1 => new() {Quality=1, Cell=10, Particles=.6f, Glow=.55f},
         2 => new() {Quality=2, Cell=8, Particles=.85f, Glow=.7f},
-        _ => new()
+        _ => Artistic()
     };
 
     public void ClampValues()
     {
-        Mode=Math.Clamp(Mode,0,5); Quality=Math.Clamp(Quality,0,3);
+        Mode=Math.Clamp(Mode,0,AsciiRenderer.ArtisticMode); Quality=Math.Clamp(Quality,0,3);
         Palette=Math.Clamp(Palette,0,2); GlyphSet=Math.Clamp(GlyphSet,0,6);
         Cell=Math.Clamp(Cell,4,16); Density=Math.Clamp(Density,.25f,2);
         Contrast=Math.Clamp(Contrast,.25f,2); Brightness=Math.Clamp(Brightness,.25f,2);

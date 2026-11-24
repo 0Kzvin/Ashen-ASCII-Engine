@@ -14,7 +14,8 @@ public partial class GraphicsLab : Node3D
     Camera3D camera;
     OmniLight3D key, rim;
     AsciiRenderer renderer;
-    ArtProfile profile = new();
+    ArtProfile profile = ArtProfile.Artistic();
+    bool surfaceInk = true;
     bool rotating = true, attack;
     float yaw = -.22f;
     Label info;
@@ -36,7 +37,7 @@ public partial class GraphicsLab : Node3D
         stage.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new(12, .24f, 12) } });
         AddChild(stage);
 
-        knight = new Knight { Position = new(0, .04f, 0), Rotation = new(0, Mathf.Pi + yaw, 0) };
+        knight = new Knight { ArtisticGlyphWidth = .067f, Position = new(0, .04f, 0), Rotation = new(0, Mathf.Pi + yaw, 0) };
         AddChild(knight);
         camera = new Camera3D { Current = true, Near = .08f, Far = 25f };
         AddChild(camera);
@@ -59,6 +60,8 @@ public partial class GraphicsLab : Node3D
         string[] args = OS.GetCmdlineUserArgs();
         int index = Array.IndexOf(args, "--lab-capture");
         if (index >= 0) Capture(index + 1 < args.Length ? args[index + 1] : ProjectSettings.GlobalizePath("user://lab"));
+        index = Array.IndexOf(args, "--lab-benchmark");
+        if (index >= 0) Benchmark(index + 1 < args.Length ? args[index + 1] : ProjectSettings.GlobalizePath("user://lab"));
     }
 
     OmniLight3D Lamp(Vector3 position, string color, float energy)
@@ -80,8 +83,9 @@ public partial class GraphicsLab : Node3D
     void Apply()
     {
         var p=profile;
-        renderer.Apply(p.Mode,p.Cell,p.Density,p.Contrast,p.Brightness,p.Saturation,p.Exposure,p.Edges,p.Stability,p.Palette,p.GlyphSet);
-        info.Text = $"{GameHud.Modes[p.Mode]}   ·   1–3 Modos   ·   Espacio Girar   ·   Clic Atacar\nRueda Distancia   ·   Q/E Ángulo   ·   L Luz   ·   Esc Volver";
+        knight.SetArtistic(surfaceInk && (p.Mode == AsciiRenderer.ArtisticMode || surfaceOnly));
+        renderer.Apply(p.Mode,p.Cell,p.Density,p.Contrast,p.Brightness,p.Saturation,p.Exposure,p.Edges,p.Stability,p.Palette,p.GlyphSet,surfaceInk);
+        info.Text = $"{GameHud.Modes[p.Mode]}   ·   1–4 Modos   ·   Espacio Girar   ·   Clic Atacar\nRueda Distancia   ·   Q/E Ángulo   ·   L Luz   ·   Esc Volver";
     }
 
     public override void _PhysicsProcess(double delta)
@@ -109,7 +113,8 @@ public partial class GraphicsLab : Node3D
         {
             case Key.Key1: profile.Mode = 0; break;
             case Key.Key2: profile.Mode = 3; break;
-            case Key.Key3: profile.Mode = AsciiRenderer.AdvancedMode; break;
+            case Key.Key3: profile = new ArtProfile(); break;
+            case Key.Key4: profile = ArtProfile.Artistic(); break;
             case Key.Space: rotating = !rotating; break;
             case Key.L: key.Visible = !key.Visible; break;
             case Key.Escape: GetTree().ChangeSceneToFile("res://scenes/Main.tscn"); return;
@@ -117,6 +122,8 @@ public partial class GraphicsLab : Node3D
         }
         Apply();
     }
+
+    bool surfaceOnly;
 
     async void Capture(string output)
     {
@@ -127,9 +134,25 @@ public partial class GraphicsLab : Node3D
             rotating = false;
             for (int i=0;i<32;i++) await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
             SetPhysicsProcess(false);
+            profile = new ArtProfile();
             await Shot(output, "laboratorio-3d", 0);
             await Shot(output, "laboratorio-original", 3);
             await Shot(output, "laboratorio-v2", 5);
+            profile = ArtProfile.Artistic();
+            surfaceInk = false;
+            foreach (int size in new[] { 6, 8, 10, 12 })
+            {
+                profile.Cell = size;
+                await Shot(output, $"v3-pantalla-{size}", AsciiRenderer.ArtisticMode);
+            }
+            profile.Cell = 10;
+            surfaceInk = true;
+            surfaceOnly = true;
+            await Shot(output, "v3-superficie", 0);
+            surfaceOnly = false;
+            await Shot(output, "v3-hibrido", AsciiRenderer.ArtisticMode);
+            await DetailAndMotion(output);
+            profile = new ArtProfile();
             profile.Cell = 12;
             profile.Density = .78f;
             await Shot(output, "laboratorio-grueso", 5);
@@ -145,7 +168,60 @@ public partial class GraphicsLab : Node3D
             for (int i=0;i<42;i++) await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
             attack = true;
             for (int i=0;i<22;i++) await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
-            await Shot(output, "laboratorio-ataque", 5, 1);
+            profile = ArtProfile.Artistic();
+            await Shot(output, "v3-ataque", AsciiRenderer.ArtisticMode, 1);
+            GetTree().Quit();
+        }
+        catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+    }
+
+    async Task DetailAndMotion(string output)
+    {
+        Transform3D original = camera.GlobalTransform;
+        float azimuth = Azimuth;
+        Vector3 blade = knight.BladeCenter;
+        Vector3 focus = blade.Lerp(knight.Position + Vector3.Up * 1.55f, .27f);
+        camera.GlobalPosition = focus + new Vector3(.16f, .26f, -2.50f);
+        camera.LookAt(focus);
+        profile = new ArtProfile();
+        await Shot(output, "espada-v2", 5);
+        profile = ArtProfile.Artistic();
+        await Shot(output, "espada-v3", 6);
+        foreach (int mode in new[] { 5, 6 })
+        {
+            profile = mode == 5 ? new ArtProfile() : ArtProfile.Artistic();
+            foreach (float step in new[] { .18f, 1.8f })
+            for (int frame = 0; frame < 4; frame++)
+            {
+                Azimuth = azimuth + frame * step;
+                Frame();
+                string speed = step < 1 ? "lento" : "rapido";
+                await Shot(output, $"movimiento-{mode}-{speed}-{frame}", mode, frame == 0 ? 7 : 1);
+            }
+        }
+        Azimuth = azimuth;
+        camera.GlobalTransform = original;
+    }
+
+    async void Benchmark(string output)
+    {
+        try
+        {
+            Directory.CreateDirectory(output);
+            info.Hide();
+            foreach (var (name, mode, surface, hybrid) in new[] {
+                ("pantalla", 6, false, false), ("superficie", 0, true, true), ("hibrido", 6, false, true)
+            })
+            {
+                profile = ArtProfile.Artistic();
+                profile.Mode = mode;
+                surfaceOnly = surface;
+                surfaceInk = hybrid;
+                Apply();
+                string result = await FrameBenchmark.Sample(this, $"lab={name}", 5);
+                GD.Print(result);
+                File.WriteAllText(Path.Combine(output, $"benchmark-lab-{name}.txt"), result);
+            }
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }

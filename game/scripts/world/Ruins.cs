@@ -10,6 +10,11 @@ public partial class Ruins : Node3D
     private readonly Dictionary<(Mesh, Material), List<Transform3D>> _batches = new();
     private readonly List<(OmniLight3D Light, float Energy, float Phase)> _lamps = new();
     private readonly List<(CpuParticles3D Emitter, int Count)> _emitters = new();
+    private readonly List<(Node3D Original, Node3D Artistic)> _torchLooks = new();
+    private readonly List<(CpuParticles3D Emitter, Mesh OriginalMesh, Mesh ArtisticMesh, Gradient Original, Gradient Artistic, bool Portal)> _glyphMotes = new();
+    private MeshInstance3D _portal;
+    private ShaderMaterial _portalOriginal, _portalArt;
+    private bool _artistic;
     private readonly BoxMesh _cube = new() { Size = Vector3.One };
     private readonly CylinderMesh _shaft = new() { TopRadius = 0.5f, BottomRadius = 0.5f, Height = 1, RadialSegments = 8, Rings = 0 };
     private readonly CylinderMesh _spire = new() { TopRadius = 0, BottomRadius = 0.5f, Height = 1, RadialSegments = 8, Rings = 0 };
@@ -61,6 +66,39 @@ public partial class Ruins : Node3D
         Torch(-6.9f, 2.55f, 0.94f);
         FlushBatches();
         SetAtmosphere(_lightLevel, _fogLevel, _particleLevel, _glowLevel);
+    }
+
+    public void SetArtistic(bool active)
+    {
+        if (_artistic == active) return;
+        _artistic = active;
+        foreach (var mat in _paving) mat.Roughness = active ? .985f : .89f;
+        _mortar.Roughness = active ? .985f : .89f;
+        foreach (var (original, art) in _torchLooks)
+        {
+            original.Visible = !active;
+            art.Visible = active;
+        }
+        _portal.MaterialOverride = active ? _portalArt : _portalOriginal;
+        foreach (var (emitter, originalMesh, artisticMesh, original, art, portal) in _glyphMotes)
+        {
+            emitter.Mesh = active ? artisticMesh : originalMesh;
+            emitter.ScaleAmountMin = active ? (portal ? .033f : .043f) : .070f;
+            emitter.ScaleAmountMax = active ? (portal ? .078f : .094f) : .16f;
+            emitter.AngleMin = active ? -30 : 0;
+            emitter.AngleMax = active ? 28 : 0;
+            emitter.AngularVelocityMin = active ? -52 : 0;
+            emitter.AngularVelocityMax = active ? 57 : 0;
+            emitter.ColorRamp = active ? art : original;
+        }
+        _sky.GlowBloom = active ? 0.024f : 0.065f;
+    }
+
+    private static ShaderMaterial GlyphMaterial(string path)
+    {
+        var material = new ShaderMaterial { Shader = GD.Load<Shader>($"res://shaders/{path}.gdshader") };
+        material.SetShaderParameter("glyph_atlas", GD.Load<Texture2D>("res://assets/fonts/artistic_atlas.png"));
+        return material;
     }
 
     public void SetAtmosphere(float light, float fog, float particles, float glow)
@@ -611,8 +649,11 @@ void fragment(){
             vertex(a,0);vertex(a,top(a));vertex(b,top(b));
             vertex(a,0);vertex(b,top(b));vertex(b,0);
         }
-        st.SetMaterial(new ShaderMaterial{Shader=shader});
-        AddChild(new MeshInstance3D{Name="AstralThreshold",Mesh=st.Commit(),CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
+        _portalOriginal = new ShaderMaterial { Shader = shader };
+        _portalArt = GlyphMaterial("artistic_portal");
+        _portal = new MeshInstance3D { Name = "AstralThreshold", Mesh = st.Commit(), MaterialOverride = _portalOriginal,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        AddChild(_portal);
         Motes(new(0,0.23f,z+0.20f),_rune,22,3.9f,1.15f,false,true);
     }
 
@@ -798,8 +839,21 @@ void fragment(){
             Line(basePos+dir*0.14f,basePos+dir*0.25f+Vector3.Up*0.32f,0.04f,_iron);
         }
         Vector3 flame=new(x,h+0.32f,z);
-        Place(_spire,_flame,flame,new(0.29f,0.52f,0.29f),new(0,0,-0.12f));
-        Place(_spire,_flameCore,flame+new Vector3(0.035f,-0.07f,0.095f),new(0.13f,0.26f,0.13f));
+        var cones = new Node3D { Position = flame };
+        AddChild(cones);
+        cones.AddChild(new MeshInstance3D { Mesh = _spire, MaterialOverride = _flame, Scale = new(.29f,.52f,.29f),
+            Rotation = new(0,0,-.12f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        cones.AddChild(new MeshInstance3D { Mesh = _spire, MaterialOverride = _flameCore, Scale = new(.13f,.26f,.13f),
+            Position = new(.035f,-.07f,.095f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        var material = GlyphMaterial("artistic_flame");
+        material.SetShaderParameter("phase", x);
+        var paintedFlame = new MeshInstance3D {
+            Mesh = new QuadMesh { Size = new(.72f,1.12f) }, MaterialOverride = material,
+            Position = flame + Vector3.Up * .37f, Visible = false, ExtraCullMargin = .5f,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+        };
+        AddChild(paintedFlame);
+        _torchLooks.Add((cones, paintedFlame));
         Lamp(flame+Vector3.Up*0.14f,new Color("ffa75c"),5.0f,4.8f);
         Motes(flame,_flame,13,1.24f,0.12f,false);
         Motes(flame+Vector3.Up*0.30f,Surface("5a5363"),7,1.8f,0.10f,true);
@@ -825,5 +879,14 @@ void fragment(){
         };
         AddChild(emitter);
         _emitters.Add((emitter,count));
+        if (!smoke)
+        {
+            var hues = rune
+                ? new[] { new Color("#aaa6ff00"), new Color("#afc8ff9e"), new Color("#6b8ee700") }
+                : new[] { new Color("#ffefac00"), new Color("#ffe2a1ae"), new Color("#eb883100") };
+            var artMesh = GlyphParticles.Mesh(rune ? "rune" : "spark", material.AlbedoColor, rune ? .25f : .40f);
+            _glyphMotes.Add((emitter, mesh, artMesh, gradient,
+                new Gradient { Offsets = new[] { 0f, .24f, 1f }, Colors = hues }, rune));
+        }
     }
 }

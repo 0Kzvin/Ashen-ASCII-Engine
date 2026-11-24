@@ -4,7 +4,7 @@ using static InterfaceStyle;
 public partial class GameHud : Control
 {
     public Main Game;
-    public static readonly string[] Modes={"Escena 3D","Monocromo","ASCII a color","ASCII original","Diagnóstico","ASCII cinematográfico V2"};
+    public static readonly string[] Modes={"Escena 3D","Monocromo","ASCII a color","ASCII original","Diagnóstico","ASCII cinematográfico V2","ASCII artístico V3"};
     GradientTexture2D wash;
     public override void _Ready()
     {

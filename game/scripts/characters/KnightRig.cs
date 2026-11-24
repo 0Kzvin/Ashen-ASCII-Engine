@@ -10,6 +10,7 @@ internal sealed class KnightRig
     private readonly Node3D _sword;
     internal readonly Node3D BladeTip, BladeHeel;
     private readonly OmniLight3D _light;
+    private readonly ArtisticSurfaces _art;
     private readonly StandardMaterial3D _steel, _silver, _dark, _leather, _fabric, _hem, _gold, _ember, _core;
 
     internal KnightRig(Knight parent, bool enemy)
@@ -99,8 +100,11 @@ internal sealed class KnightRig
         _light=new OmniLight3D{ Name="BladeGlow",Position=new(0,.72f,0),LightColor=enemy?new("ff4d26"):new("ffad47"),
             LightEnergy=.72f,OmniRange=2.6f,ShadowEnabled=false };
         _sword.AddChild(_light);
+        _art = new ArtisticSurfaces(_root, parent.ArtisticGlyphWidth, _fabric, _hem, _ember, _core);
         Pose(0,0,0,-1,false,0,0,0);
     }
+
+    internal void SetArtistic(bool enabled) => _art.Show(enabled);
 
     private void BuildLimbs(int i)
     {

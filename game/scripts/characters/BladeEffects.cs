@@ -8,9 +8,11 @@ internal sealed class BladeEffects
     private readonly CpuParticles3D _embers, _impact;
     private readonly ImmediateMesh _ribbon = new();
     private readonly StandardMaterial3D _ribbonMaterial;
+    private readonly ShaderMaterial _artisticRibbon;
     private readonly Color _color;
     private readonly Node3D _heel, _tip;
     private bool _enabled = true;
+    internal bool Artistic { get; set; }
 
     internal BladeEffects(Knight parent, KnightRig rig, bool enemy)
     {
@@ -51,6 +53,8 @@ internal sealed class BladeEffects
             CastShadow=GeometryInstance3D.ShadowCastingSetting.Off };
         parent.AddChild(trail);
         trail.GlobalTransform=Transform3D.Identity;
+        _artisticRibbon = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/artistic_trail.gdshader") };
+        _artisticRibbon.SetShaderParameter("glyph_atlas", GD.Load<Texture2D>("res://assets/fonts/artistic_atlas.png"));
     }
 
     internal void SetIntensity(float value)
@@ -75,12 +79,16 @@ internal sealed class BladeEffects
             _history.Add(new(_heel.GlobalPosition.Lerp(_tip.GlobalPosition,.26f),_tip.GlobalPosition,time));
         _ribbon.ClearSurfaces();
         if(_history.Count<2) return;
-        _ribbon.SurfaceBegin(Mesh.PrimitiveType.TriangleStrip,_ribbonMaterial);
+        _ribbon.SurfaceBegin(Mesh.PrimitiveType.TriangleStrip, Artistic ? _artisticRibbon : _ribbonMaterial);
         foreach(var slice in _history)
         {
             float alpha=Mathf.Clamp(1-(time-slice.Time)/.14f,0,1);
-            _ribbon.SurfaceSetColor(new Color(_color,.028f*alpha)); _ribbon.SurfaceAddVertex(slice.Inner);
-            _ribbon.SurfaceSetColor(new Color(_color,.40f*alpha)); _ribbon.SurfaceAddVertex(slice.Tip);
+            _ribbon.SurfaceSetUV(new Vector2(1-alpha,0));
+            _ribbon.SurfaceSetColor(new Color(_color,(Artistic ? .09f : .028f)*alpha));
+            _ribbon.SurfaceAddVertex(slice.Inner);
+            _ribbon.SurfaceSetUV(new Vector2(1-alpha,1));
+            _ribbon.SurfaceSetColor(new Color(_color,(Artistic ? .54f : .40f)*alpha));
+            _ribbon.SurfaceAddVertex(slice.Tip);
         }
         _ribbon.SurfaceEnd();
         // Keep a thin bright rim and let the larger ribbon fade into the background.

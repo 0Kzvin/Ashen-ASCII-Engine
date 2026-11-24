@@ -4,12 +4,14 @@ using Godot;
 public partial class Knight : CharacterBody3D
 {
     [Export] public bool Enemy { get; set; }
+    [Export] public float ArtisticGlyphWidth { get; set; } = .13f;
     [Export] public PackedScene ModelOverride { get; set; }
     public int MaxHealth => Enemy ? 78 : 100;
     public int Health {get; private set;}
     public bool Defeated => Health<=0;
     public bool Attacking => _attackLeft>0;
     public bool Dodging => _dodgeLeft>0;
+    internal Vector3 BladeCenter => _rig.BladeHeel.GlobalPosition.Lerp(_rig.BladeTip.GlobalPosition, .5f);
     public event Action<Knight> Damaged;
     public event Action<Knight> Fell;
 
@@ -33,6 +35,12 @@ public partial class Knight : CharacterBody3D
         Health=MaxHealth;
         _rig=new KnightRig(this,Enemy); _fx=new BladeEffects(this,_rig,Enemy);
         SetEffects(_intensity);
+    }
+
+    public void SetArtistic(bool enabled)
+    {
+        _rig.SetArtistic(enabled);
+        _fx.Artistic = enabled;
     }
 
     public void SetEffects(float particles)
