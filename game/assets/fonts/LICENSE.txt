@@ -1,0 +1,12 @@
+The bundled font8x8_basic.h is by Daniel Hepper, based on the work of
+Marcel Sondaar and the public domain IBM VGA fonts. Its author declares it
+Public Domain. The original notice is preserved in the file.
+
+Upstream: https://github.com/dhepper/font8x8
+Revision: 8e279d2d864e79128e96188a6b9526cfa3fbfef9
+SHA-256 of font8x8_basic.h:
+49d8df366296b203ca3211bc0672cf2a762135bf12710735b6292756b19dffd5
+
+The supplemental runes and directional marks drawn for this demo in
+tools/build_atlas.py are dedicated to the public domain under CC0 1.0.
+https://creativecommons.org/publicdomain/zero/1.0/

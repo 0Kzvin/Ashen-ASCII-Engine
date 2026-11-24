@@ -1,0 +1,9 @@
+[
+  {"name": "Clásico", "density": " .:,-+*io=xs0%#@", "directions": "─╲│╱"},
+  {"name": "Rúnico", "density": " .ᛁᛊᛏᛚᚲᛉᚨᚠᛃᚱᚷᛗᛞᚻ", "directions": "─╲│╱"},
+  {"name": "Piedra", "density": " .:`_-~+i=nxho#@", "directions": "─╲│╱"},
+  {"name": "Follaje", "density": " .,'`vYrTfwyW%#@", "directions": "─╲│╱"},
+  {"name": "Agua", "density": " .,'-_~=:+*cs%#@", "directions": "─╲│╱"},
+  {"name": "Metal", "density": " .:|-+/=lIXHMO#@", "directions": "─╲│╱"},
+  {"name": "Brasas", "density": " .,:;!'*+xo&08#@", "directions": "─╲│╱"}
+]

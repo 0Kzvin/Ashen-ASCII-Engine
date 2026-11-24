@@ -1,0 +1,9 @@
+[
+  {"material": "tela", "base": "Clásico", "density": " .,`':;vixs*&%#@"},
+  {"material": "magia", "base": "Rúnico"},
+  {"material": "piedra", "base": "Piedra"},
+  {"material": "follaje", "base": "Follaje"},
+  {"material": "agua", "base": "Agua"},
+  {"material": "metal", "base": "Metal"},
+  {"material": "fuego", "base": "Brasas"}
+]
